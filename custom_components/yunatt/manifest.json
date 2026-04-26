@@ -2,7 +2,7 @@
   "domain": "yunatt",
   "name": "Yunatt 门禁",
   "version": "1.0.0",
-  "documentation": "https://github.com/local/yunatt",
+  "documentation": "https://github.com/rudyll/yunatt-ha",
   "requirements": ["websockets>=13.0"],
   "dependencies": [],
   "codeowners": [],

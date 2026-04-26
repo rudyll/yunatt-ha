@@ -1,0 +1,16 @@
+.DS_Store
+.claude/
+*.pcap
+*.apk
+*.pdf
+*.zip
+apk_decompiled/
+apk_raw/
+tcp_dump*.md
+arp_mitm.py
+test_ack_formats.py
+lock_sniffer.py
+globalyunatt*/
+7044*/
+__pycache__/
+*.pyc

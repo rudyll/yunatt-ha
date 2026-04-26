@@ -92,7 +92,7 @@ async def dispatch(ws, cmd, data, now):
 async def main():
     host, port = "0.0.0.0", 7792
     log.info(f"本地 WebSocket 服务器启动: ws://{host}:{port}/pub/chat")
-    log.info("在设备上将服务器地址设为 Mac IP（10.20.20.61），端口 7792")
+    log.info("在设备上将服务器地址设为本机 IP，端口 7792")
     log.info("等待设备连接...\n")
 
     async with websockets.serve(handle_device, host, port):
