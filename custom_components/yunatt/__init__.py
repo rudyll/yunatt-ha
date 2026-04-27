@@ -129,7 +129,26 @@ class YunattServer:
             await ws.send(json.dumps(ack))
 
         else:
-            _LOGGER.debug("未知命令 cmd=%s data=%s", cmd, data)
+            # 未知命令——记录完整内容，尝试作为事件派发
+            _LOGGER.info("未知命令 cmd=%s data=%s", cmd, data)
+            # 若含 record 字段（可能是不同命名的日志命令），同样派发事件
+            for record in data.get("record", []):
+                event_data = {
+                    "sn": data.get("sn"),
+                    "name": record.get("name", ""),
+                    "enrollid": record.get("enrollid"),
+                    "mode": record.get("mode"),
+                    "mode_name": _mode_name(record.get("mode")),
+                    "inout": record.get("inout"),
+                    "event": record.get("event"),
+                    "time": record.get("time"),
+                    "aliasid": record.get("aliasid", ""),
+                    "cmd": cmd,
+                }
+                self.last_event = event_data
+                _LOGGER.info("门禁事件(未知cmd): name=%s mode=%s", event_data["name"], event_data["mode_name"])
+                self.hass.bus.async_fire(f"{DOMAIN}_access", event_data)
+                async_dispatcher_send(self.hass, SIGNAL_ACCESS_EVENT, event_data)
             ack = {"ret": cmd, "result": True, "cloudtime": now}
             await ws.send(json.dumps(ack))
 
