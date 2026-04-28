@@ -15,11 +15,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import DOMAIN, SIGNAL_ACCESS_EVENT, CONF_PORT
+from .const import (
+    DOMAIN, SIGNAL_ACCESS_EVENT, SIGNAL_DOOR_OPEN,
+    SIGNAL_ONLINE, CONF_PORT, OFFLINE_TIMEOUT,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "binary_sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -46,6 +49,8 @@ class YunattServer:
         self._server = None
         self.device_info: dict = {}
         self.last_event: dict | None = None
+        self.online: bool = False
+        self._offline_handle = None
 
     async def start(self) -> None:
         try:
@@ -64,11 +69,27 @@ class YunattServer:
             self._server.close()
             await self._server.wait_closed()
 
+    def _set_online(self, online: bool) -> None:
+        if self.online != online:
+            self.online = online
+            async_dispatcher_send(self.hass, SIGNAL_ONLINE, online)
+            _LOGGER.info("设备%s", "上线" if online else "离线")
+
+    def _reset_offline_timer(self) -> None:
+        if self._offline_handle:
+            self._offline_handle.cancel()
+        self._offline_handle = self.hass.loop.call_later(
+            OFFLINE_TIMEOUT, lambda: self._set_online(False)
+        )
+
     async def _handle_device(self, websocket) -> None:
         addr = websocket.remote_address
         _LOGGER.info("设备连接: %s", addr)
+        self._set_online(True)
+        self._reset_offline_timer()
         try:
             async for raw in websocket:
+                self._reset_offline_timer()
                 if isinstance(raw, bytes):
                     try:
                         raw = raw.decode("utf-8")
@@ -122,8 +143,9 @@ class YunattServer:
                 )
                 # 触发 HA 事件
                 self.hass.bus.async_fire(f"{DOMAIN}_access", event_data)
-                # 触发 sensor 更新
+                # 触发 sensor / binary_sensor 更新
                 async_dispatcher_send(self.hass, SIGNAL_ACCESS_EVENT, event_data)
+                async_dispatcher_send(self.hass, SIGNAL_DOOR_OPEN, True)
 
             ack = {"ret": "sendlog", "result": True, "logindex": logindex}
             await ws.send(json.dumps(ack))
